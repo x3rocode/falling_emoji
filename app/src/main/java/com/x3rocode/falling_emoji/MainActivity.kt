@@ -1,13 +1,16 @@
 package com.x3rocode.falling_emoji
 
+import android.content.res.Resources
 import android.graphics.Paint
 import android.os.Bundle
-import android.util.Half.toFloat
+import android.util.DisplayMetrics
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
@@ -15,22 +18,21 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.x3rocode.falling_emoji.ui.theme.Falling_emojiTheme
 import kotlin.random.Random
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,71 +56,7 @@ enum class EmojiState {
     Hide
 }
 
-@Composable
-fun fallingEmoji(modifier: Modifier,
-          count: Int,
-          text: String,
-          fontSize: Int
-) {
-    val textPaint = Paint().apply {
-        textSize = fontSize.toFloat()
-        color = Color.Black.toArgb()
-    }
 
-    val width = LocalConfiguration.current.screenWidthDp
-    val height = LocalConfiguration.current.screenHeightDp
-
-    val xRandom = Random.nextInt(0, width)
-    val fallingSecond = Random.nextInt(1000, 2000)
-
-    val state = remember {
-        mutableStateOf(EmojiState.Show)
-    }
-
-    val offsetYAnimation: Dp by animateDpAsState(
-        targetValue = when (state.value) {
-            EmojiState.Show -> 0.dp
-            else -> height.dp
-        },
-        animationSpec = tween(fallingSecond)
-    )
-
-    val offsetXAnimation: Dp by remember { mutableStateOf(xRandom.dp) }
-
-    val rotateAnimation: Float by animateFloatAsState(
-        targetValue = when (state.value) {
-            EmojiState.Show -> 0f
-            else -> xRandom.toFloat()
-        },
-        animationSpec = tween(1000)
-    )
-    LaunchedEffect(key1 = state, block = {
-        state.value = when (state.value) {
-            EmojiState.Show -> EmojiState.Hide
-            EmojiState.Hide -> EmojiState.Show
-        }
-    })
-
-    AnimatedVisibility(
-        visible = state.value == EmojiState.Show,
-        enter = fadeIn(animationSpec = tween(durationMillis = 1000)),
-        exit = fadeOut(animationSpec = tween(durationMillis = 1000))
-    ) {
-        Canvas(modifier = modifier
-            .offset(y = offsetYAnimation, x = offsetXAnimation),
-            onDraw = {
-                drawIntoCanvas {
-                    it.nativeCanvas.drawText(
-                        text,
-                        0f,
-                        0f,
-                        textPaint
-                    )
-                }
-            }
-        )
-    }
-}
 
 @Composable
 fun Screen() {
@@ -126,26 +64,14 @@ fun Screen() {
     val onClick = remember { mutableStateOf(false) }
 
 
+
+    Log.d("gggggggggggggggggg", onClick.value.toString())
     Box(modifier = Modifier.fillMaxSize()) {
 
 
-        if(onClick.value){
-            repeat(heartCount.value) {
-                fallingEmoji(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 36.dp),
-                    fontSize = 110,
-                    text = "a",
-                    count = 3
-                )
-            }
-        }
-
         Button(
             onClick = {
-                onClick.value = !onClick.value
+                onClick.value = true
             },
             modifier = Modifier
                 .align(Alignment.Center)
@@ -158,5 +84,96 @@ fun Screen() {
             )
         }
 
+        if(onClick.value){
+            fallingEmoji(
+                modifier = Modifier
+                    .fillMaxSize(),
+                fontSize = 110,
+                text = "a",
+                count = 3,
+                onClick = onClick
+            )
+        }
+
     }
 }
+
+@OptIn(ExperimentalTextApi::class)
+@Composable
+fun fallingEmoji(
+    modifier: Modifier,
+    count: Int,
+    text: String,
+    fontSize: Int,
+    onClick : MutableState<Boolean>
+) {
+
+    val width = LocalConfiguration.current.screenWidthDp
+    val height = LocalConfiguration.current.screenHeightDp
+
+    val xRandom = Random.nextInt(0, width)
+    var xRandomList = Array<Dp>(count) { Random.nextInt(0, width).dp }.asList()
+
+
+    val fallingSecond = Random.nextInt(1000, 2000)
+    var fallingSecondList = IntArray(count) { Random.nextInt(1000, 2000) }.asList()
+
+    val state = remember {
+        mutableStateOf(EmojiState.Show)
+    }
+
+
+    val offsetYAnimation: Dp by animateDpAsState(
+        targetValue = when (state.value) {
+            EmojiState.Show -> 0.dp
+            else -> height.dp
+        },
+        animationSpec = tween(fallingSecond),
+        finishedListener = {
+            onClick.value = false
+            state.value = EmojiState.Hide
+        }
+    )
+    val offsetYAnimationList = Array<Dp>(count) {
+        offsetYAnimation
+    }.asList()
+
+    val offsetXAnimation by remember { mutableStateOf(xRandomList) }
+
+    val rotateAnimation: Float by animateFloatAsState(
+        targetValue = when (state.value) {
+            EmojiState.Show -> 0f
+            else -> xRandom.toFloat()
+        },
+        animationSpec = tween(1000)
+    )
+    LaunchedEffect(key1 = state, block = {
+        when (state.value) {
+            EmojiState.Show -> {
+                state.value = EmojiState.Hide
+            }
+            EmojiState.Hide -> {
+                state.value = EmojiState.Show
+            }
+        }
+    })
+    val textMeasure = rememberTextMeasurer()
+
+
+    Canvas(modifier = modifier
+        .border(width = 1.dp, color = Color.Black),
+        onDraw = {
+            repeat(count){
+                drawText(
+                    textMeasurer = textMeasure,
+                    text = text,
+                    style = TextStyle(
+                        fontSize = fontSize.toSp(),
+                    ),
+                    topLeft = Offset(offsetXAnimation[it]?.toPx(), offsetYAnimation.toPx())
+                )
+            }
+        }
+    )
+}
+
